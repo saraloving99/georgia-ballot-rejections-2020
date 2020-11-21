@@ -1,0 +1,1 @@
+# georgia-ballot-rejections-2020
