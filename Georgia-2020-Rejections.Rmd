@@ -1,0 +1,112 @@
+---
+title: "Georgia Rejected Ballots by County, 2020 Presidential Election"
+output: html_document
+---
+
+```{r ga map, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+#GA 2020 General Election VBM Rejections
+library(tidyverse)
+library(lubridate)
+library(eeptools)
+setwd("~/Desktop/Georgia VBM Rejections General Election 2020")
+gavbmtotal<-read_csv("Rejected with Voter File.csv")
+
+#Totals
+garejected<-filter(gavbmtotal, Ballot_Status=="R")
+gatotals<-table(gavbmtotal$County)
+gatotals<-data.frame(gatotals)
+garejects <- garejected %>% group_by(County) %>% dplyr::summarise(n = dplyr::n())
+gatotals<-left_join(gatotals, garejects, by = c("Var1"="County"))
+gatotals<-mutate(gatotals, "Proportion Rejected"=n / Freq, "Percent Rejected"=(n / Freq)*100)
+gatotals<-dplyr::select(gatotals, -c(2:3))
+
+#Race:
+gavbmrace<-table(gavbmtotal$County, gavbmtotal$RACE_DESC) 
+gavbmrace<-data.frame(gavbmrace)
+gavbmrace<-gavbmrace %>% group_by(Var1)
+gatest <- garejected %>% group_by(County, RACE_DESC) %>% dplyr::summarise(n = dplyr::n())
+gatest<-left_join(gavbmrace, gatest, by = c("Var1"="County", "Var2"="RACE_DESC"))
+gatest<-left_join(gatest, gatotals, by=c("Var1"="Var1"))
+gatest<-mutate(gatest, rej_rate=n / Freq)
+gatest<-mutate(gatest, rej_perc=(n / Freq)*100)
+names<-c("County", "Race", "Total", "Number Rejected", "Proportion Rejected", "Percent Rejected", "Proportion Rejected by Race", "Percent Rejected by Race")
+names(gatest)<-names
+gatest<-dplyr::select(gatest, -c(5,7))
+gatest2<-spread(gatest, "Race", "Percent Rejected by Race", fill = NA, convert = FALSE)
+coalesce_by_column <- function(gatest2) {
+  return(coalesce(gatest2[1], gatest2[2], gatest2[3], gatest2[4], gatest2[5], gatest2[6], gatest2[7]))
+}
+gatest3<-gatest2 %>%
+  group_by(County) %>%
+  summarise_all(coalesce_by_column)
+
+#Age:
+gavbmage<-table(gavbmtotal$County, gavbmtotal$agegroup) 
+gavbmage<-data.frame(gavbmage)
+gavbmage<-gavbmage %>% group_by(Var1)
+gatest4 <- garejected %>% group_by(County, agegroup) %>% dplyr::summarise(n = dplyr::n())
+gatest4<-left_join(gavbmage, gatest4, by = c("Var1"="County", "Var2"="agegroup"))
+gatest4<-left_join(gatest4, gatotals, by=c("Var1"="Var1"))
+gatest4<-mutate(gatest4, rej_rate=n / Freq)
+gatest4<-mutate(gatest4, rej_perc=(n / Freq)*100)
+names<-c("County", "Age Group", "Total", "Number Rejected", "Proportion Rejected", "Percent Rejected", "Proportion Rejected by Age", "Percent Rejected by Age")
+names(gatest4)<-names
+gatest4<-dplyr::select(gatest4, -c(5,7))
+gatest5<-spread(gatest4, "Age Group", "Percent Rejected by Age", fill = NA, convert = FALSE)
+coalesce_by_column <- function(gatest5) {
+  return(coalesce(gatest5[1], gatest5[2], gatest5[3], gatest5[4], gatest5[5], gatest5[6]))
+}
+gatest6<-gatest5 %>%
+  group_by(County) %>%
+  summarise_all(coalesce_by_column)
+
+#Gender:
+gavbmgender<-table(gavbmtotal$County, gavbmtotal$GENDER) 
+gavbmgender<-data.frame(gavbmgender)
+gavbmgender<-gavbmgender %>% group_by(Var1)
+gatest7 <- garejected %>% group_by(County, GENDER) %>% dplyr::summarise(n = dplyr::n())
+gatest7<-left_join(gavbmgender, gatest7, by = c("Var1"="County", "Var2"="GENDER"))
+gatest7<-left_join(gatest7, gatotals, by=c("Var1"="Var1"))
+gatest7<-mutate(gatest7, rej_rate=n / Freq)
+gatest7<-mutate(gatest7, rej_perc=(n / Freq)*100)
+names<-c("County", "Gender", "Total", "Number Rejected", "Proportion Rejected", "Percent Rejected", "Proportion Rejected by Gender", "Percent Rejected by Gender")
+names(gatest7)<-names
+gatest7<-dplyr::select(gatest7, -c(5,7))
+gatest8<-spread(gatest7, "Gender", "Percent Rejected by Gender", fill = NA, convert = FALSE)
+coalesce_by_column <- function(gatest8) {
+  return(coalesce(gatest8[1], gatest8[2], gatest8[3]))
+}
+gatest9<-gatest8 %>%
+  group_by(County) %>%
+  summarise_all(coalesce_by_column)
+names<-c("County", "Total", "Number Rejected", "Percent Rejected", "Female", "Male", "Other Gender")
+names(gatest9)<-names
+
+#Merge:
+gatest9<-dplyr::select(gatest9, -c(2:4))
+gatest6<-dplyr::select(gatest6, -c(2:4))
+gatest10<-left_join(gatest6, gatest9, by=c("County"="County"))
+gatest11<-left_join(gatest10, gatest3, by=c("County"="County"))
+gatest12<-data.frame(gatest11$County, round(gatest11[2:10], 2), round(gatest11[13:20], 2))
+names<-c("County", "18 to 24 Rejection Rate", "25 to 34 Rejection Rate", "35 to 44 Rejection Rate", "45 to 55 Rejection Rate", "56 to 65 Rejection Rate", "66 and Older Rejection Rate", "Female Rejection Rate", "Male Rejection Rate", "Other Gender Rejection Rate", "Percent Rejected", "American Indian or Alaskan Native Rejection Rate", "Asian or Pacific Islander Rejection Rate", "Black Rejection Rate", "Hispanic Rejection Rate", "Other Race Rejection Rate", "Race Unknown Rejection Rate", "White Rejection Rate")
+names(gatest12)<-names
+library(sp)
+library(raster)
+library(rgdal)
+gacounty <- readOGR("georgia_shapefile.shp", verbose=FALSE)
+setClass("num.with.commas")
+setAs("character", "num.with.commas", function(from) as.numeric(gsub(",", "", from) ) )
+gacounty$NAME = toupper(gacounty$NAME)
+gacounty <- merge(gacounty, gatest12, by.x ="NAME", by.y = "County")
+library(RColorBrewer)
+my.palette <- brewer.pal(n = 7, name = "Purples")
+library(sf)
+library(raster)
+library(dplyr)
+library(spData)
+library(tmap)
+tmap_mode("view")
+tm_shape(gacounty) + tm_polygons(col = "Percent Rejected", palette = my.palette, popup.vars=c("Percent Rejected","American Indian or Alaskan Native Rejection Rate", "Asian or Pacific Islander Rejection Rate", "Black Rejection Rate", "Hispanic Rejection Rate", "Other Race Rejection Rate", "Race Unknown Rejection Rate", "White Rejection Rate",
+                                                                                              "18 to 24 Rejection Rate", "25 to 34 Rejection Rate", "35 to 44 Rejection Rate", "45 to 55 Rejection Rate", "56 to 65 Rejection Rate", "66 and Older Rejection Rate", 
+                                                                                              "Female Rejection Rate", "Male Rejection Rate", "Other Gender Rejection Rate"))
+```
